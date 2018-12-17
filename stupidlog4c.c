@@ -1,7 +1,7 @@
 #include "stupidlog4c.h"
 
-static char filenameprefix[256];
-static _Thread_local FILE *logfile;
+static char filenameprefix[256] = {0};
+static _Thread_local FILE *logfile = NULL;
 
 static FILE *stupid_log_make_handle() {
 	FILE *f = fopen(filenameprefix, "a");
