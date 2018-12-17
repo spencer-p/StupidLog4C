@@ -1,5 +1,9 @@
 #include "stupidlog4c.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+#include <time.h>
+
 static char filenameprefix[256] = {0};
 static _Thread_local FILE *logfile = NULL;
 
@@ -47,4 +51,23 @@ FILE *stupid_log_handle() {
 		logfile = stupid_log_make_handle();
 	}
 	return logfile;
+}
+
+void stupid_log(const char *level, const char *format, ...) {
+	time_t t;
+	struct tm tm;
+	char tbuf[32];
+	FILE *out;
+	va_list args;
+
+	t = time(NULL);
+	localtime_r(&t, &tm);
+	tbuf[strftime(tbuf, sizeof(tbuf), "%F %T", &tm)] = '\0';
+
+	out = stupid_log_handle();
+	fprintf(out, "%s [%-5s] ", tbuf, level);
+	va_start(args, format);
+	vfprintf(out, format, args);
+	va_end(args);
+	fputc('\n', out);
 }

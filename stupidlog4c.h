@@ -2,20 +2,8 @@
 
 #include <stdio.h>
 
-int stupid_log_init(char *directory, char *prefix);
-int stupid_log_close();
-
-FILE *stupid_log_handle();
-
-#define stupid_log(_level, _fmt, ...) do{\
-	time_t _t = time(NULL);\
-	struct tm _tm; localtime_r(&_t, &_tm);\
-	char _tbuf[32];\
-	_tbuf[strftime(_tbuf, sizeof(_tbuf), "%F %T", &_tm)] = '\0';\
-	fprintf(stupid_log_handle(), "%s [%-5s] "_fmt"\n", _tbuf, #_level, ##__VA_ARGS__);\
-}while(0)
-
 enum STUPID_LOG_LEVELS {
+	STUPID_LOG_TRACE,
 	STUPID_LOG_DEBUG,
 	STUPID_LOG_INFO,
 	STUPID_LOG_WARN,
@@ -23,24 +11,46 @@ enum STUPID_LOG_LEVELS {
 	STUPID_LOG_FATAL,
 };
 
-#define STUPID_LOG_MIN_LEVEL STUPID_LOG_DEBUG
+// Change to your desired log level, or compile with
+// -DSTUPID_LOG_MIN_LEVEL=[your level here]
+#define STUPID_LOG_MIN_LEVEL STUPID_LOG_TRACE
+
+// Uncomment for file name and line number in log lines.
+// At the compiler level, use -DSTUPID_LOG_PRINT_FILE_AND LINE to enable or
+// -USTUPID_LOG_PRINT_FILE_AND_LINE to disable.
+//#define STUPID_LOG_PRINT_FILE_AND_LINE 1
+
+int stupid_log_init(char *directory, char *prefix);
+int stupid_log_close();
+FILE *stupid_log_handle();
+void stupid_log(const char *level, const char *format, ...);
+
+#ifdef STUPID_LOG_PRINT_FILE_AND_LINE
+#define stupid_log_wrap(_level, _fmt, ...) stupid_log(#_level, "%s:%d: "_fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define stupid_log_wrap(_level, _fmt, ...) stupid_log(#_level, _fmt, ##__VA_ARGS__)
+#endif
+
+#if STUPID_LOG_MIN_LEVEL <= STUPID_LOG_TRACE
+#define stupid_log_trace(...) stupid_log_wrap(TRACE, __VA_ARGS__)
+#endif
 
 #if STUPID_LOG_MIN_LEVEL <= STUPID_LOG_DEBUG
-#define stupid_log_debug(...) stupid_log(DEBUG, __VA_ARGS__)
+#define stupid_log_debug(...) stupid_log_wrap(DEBUG, __VA_ARGS__)
 #endif
 
 #if STUPID_LOG_MIN_LEVEL <= STUPID_LOG_INFO
-#define stupid_log_info(...) stupid_log(INFO, __VA_ARGS__)
+#define stupid_log_info(...) stupid_log_wrap(INFO, __VA_ARGS__)
 #endif
 
 #if STUPID_LOG_MIN_LEVEL <= STUPID_LOG_WARN
-#define stupid_log_warn(...) stupid_log(WARN, __VA_ARGS__)
+#define stupid_log_warn(...) stupid_log_wrap(WARN, __VA_ARGS__)
 #endif
 
 #if STUPID_LOG_MIN_LEVEL <= STUPID_LOG_ERROR
-#define stupid_log_error(...) stupid_log(ERROR, __VA_ARGS__)
+#define stupid_log_error(...) stupid_log_wrap(ERROR, __VA_ARGS__)
 #endif
 
 #if STUPID_LOG_MIN_LEVEL <= STUPID_LOG_FATAL
-#define stupid_log_fatal(...) stupid_log(FATAL, __VA_ARGS__)
+#define stupid_log_fatal(...) stupid_log_wrap(FATAL, __VA_ARGS__)
 #endif
