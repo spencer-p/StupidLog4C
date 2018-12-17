@@ -7,9 +7,9 @@
 void *logstuff(void *arg) {
 	int threadnum = *((int*)arg);
 
-	stupid_log(DEBUG, "The file pointer for thread %d is %p", threadnum, stupid_log_handle());
+	stupid_log_debug("The file pointer for thread %d is %p", threadnum, stupid_log_handle());
 	for (int i = 0; i < 10; i++) {
-		stupid_log(INFO, "From thread %d, i equals %d", threadnum, i);
+		stupid_log_info("From thread %d, i equals %d", threadnum, i);
 	}
 
 	stupid_log_close();
