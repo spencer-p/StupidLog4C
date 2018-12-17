@@ -12,7 +12,7 @@ FILE *stupid_log_handle();
 	struct tm _tm; localtime_r(&_t, &_tm);\
 	char _tbuf[32];\
 	_tbuf[strftime(_tbuf, sizeof(_tbuf), "%F %T", &_tm)] = '\0';\
-	fprintf(stupid_log_handle(), "%s %-5s "_fmt"\n", _tbuf, #_level, ##__VA_ARGS__);\
+	fprintf(stupid_log_handle(), "%s [%-5s] "_fmt"\n", _tbuf, #_level, ##__VA_ARGS__);\
 }while(0)
 
 enum STUPID_LOG_LEVELS {
