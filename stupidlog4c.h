@@ -54,8 +54,8 @@ enum STUPID_LOG_ROLLOVER {
 };
 
 int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER rollover);
-int stupid_log_close();
-void stupid_log(const char *level, const char *format, ...) __attribute__((format (printf, 2, 3)));
+void stupid_log_close();
+int stupid_log(const char *level, const char *format, ...) __attribute__((format (printf, 2, 3)));
 
 #ifdef STUPID_LOG_PRINT_FILE_AND_LINE
 #define stupid_log_wrap(_level, _fmt, ...) stupid_log(#_level, "%s:%d: "_fmt, __FILE__, __LINE__, ##__VA_ARGS__)

@@ -22,13 +22,16 @@
 
 #include "stupidlog4c.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-static char filenameprefix[256] = {0};
+#define PATH_BUFSIZE 256
+
+static char filenameprefix[PATH_BUFSIZE] = {0};
 static enum STUPID_LOG_ROLLOVER rollover_granularity = STUPID_LOG_HOURLY;
 static _Thread_local struct tm current_log_tm = {0};
 static _Thread_local FILE *logfile = NULL;
@@ -55,7 +58,7 @@ static FILE *stupid_log_make_handle() {
 	time_t t;
 	struct tm *tm;
 	char tbuf[16];
-	char pathbuf[256+16];
+	char pathbuf[PATH_BUFSIZE+16];
 	FILE *f;
 
 	t = time(NULL);
@@ -115,18 +118,27 @@ static int strjoin(char *dest, size_t n, char *left, char mid, char *right) {
 }
 
 int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER rollover) {
-	char pathbuf[256];
+	char pathbuf[PATH_BUFSIZE];
 	FILE *tmp;
 
 	rollover_granularity = rollover;
 
+	/* Check if the file paths will fit in our buffers.
+	 * One extra char for the "/" and "\0" respectively. */
+	if (strlen(directory) + strlen(prefix) + 1 + 1 > PATH_BUFSIZE) {
+		errno = ENOMEM;
+		return -1;
+	}
+
 	/* Check if the directory is writeable */
-	strjoin(pathbuf, sizeof(pathbuf), directory, '/', ".stupidlog4c.tmp");
+	strjoin(pathbuf, sizeof(pathbuf), directory, '/', ".sl4ctmp");
 	tmp = fopen(pathbuf, "w");
 	if (tmp == NULL) {
 		return -1;
 	}
 	if (fputc('\n', tmp) == EOF) {
+		fclose(tmp);
+		remove(pathbuf);
 		return -1;
 	}
 	fclose(tmp);
@@ -137,27 +149,54 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 	return 0;
 }
 
-int stupid_log_close() {
-	int rc = safe_fclose(logfile);
+void stupid_log_close() {
+	safe_fclose(logfile);
 	logfile = NULL;
-	return rc;
+	return;
 }
 
-void stupid_log(const char *level, const char *format, ...) {
+int stupid_log(const char *level, const char *format, ...) {
 	time_t t;
 	struct tm *tm;
 	char tbuf[32];
 	FILE *out;
 	va_list args;
+	int errsave = 0;
 
 	t = time(NULL);
 	tm = localtime(&t);
 	tbuf[strftime(tbuf, sizeof(tbuf), "%F %T", tm)] = '\0';
 
+	/* Get the log handler. If we're not writing to a file, still print to the
+	 * std stream we got, but report the error later */
 	out = stupid_log_handle(tm);
+	if (out == stderr || out == stdout) {
+		errsave = errno;
+	}
+
+	clearerr(out);
+
+	/* Write the prefix */
 	fprintf(out, "%s [%-5s] ", tbuf, level);
+
+	/* Write the caller's arguments */
 	va_start(args, format);
 	vfprintf(out, format, args);
 	va_end(args);
+
+	/* Append new line */
 	fputc('\n', out);
+
+	if (errsave != 0) {
+		/* Propagate errsave if we have one */
+		errno = errsave;
+		return -1;
+	}
+	if ((errsave = ferror(out)) != 0) {
+		/* If the stream had an error, report that in errno.
+		 * Returning -2 to distinguish that this errno is from the stream. */
+		errno = errsave;
+		return -2;
+	}
+	return 0;
 }
