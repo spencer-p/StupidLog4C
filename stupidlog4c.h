@@ -2,13 +2,20 @@
 
 #include <stdio.h>
 
-enum STUPID_LOG_LEVELS {
+enum STUPID_LOG_LEVEL {
 	STUPID_LOG_TRACE,
 	STUPID_LOG_DEBUG,
 	STUPID_LOG_INFO,
 	STUPID_LOG_WARN,
 	STUPID_LOG_ERROR,
 	STUPID_LOG_FATAL,
+};
+
+enum STUPID_LOG_ROLLOVER {
+	STUPID_LOG_YEARLY,
+	STUPID_LOG_MONTHLY,
+	STUPID_LOG_DAILY,
+	STUPID_LOG_HOURLY,
 };
 
 // Change to your desired log level, or compile with
@@ -20,9 +27,8 @@ enum STUPID_LOG_LEVELS {
 // -USTUPID_LOG_PRINT_FILE_AND_LINE to disable.
 //#define STUPID_LOG_PRINT_FILE_AND_LINE 1
 
-int stupid_log_init(char *directory, char *prefix);
+int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER rollover);
 int stupid_log_close();
-FILE *stupid_log_handle();
 void stupid_log(const char *level, const char *format, ...);
 
 #ifdef STUPID_LOG_PRINT_FILE_AND_LINE

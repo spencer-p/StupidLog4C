@@ -7,7 +7,6 @@
 void *logstuff(void *arg) {
 	int threadnum = *((int*)arg);
 
-	stupid_log_debug("The file pointer for thread %d is %p", threadnum, stupid_log_handle());
 	for (int i = 0; i < 10; i++) {
 		stupid_log_info("From thread %d, i equals %d", threadnum, i);
 	}
@@ -17,10 +16,12 @@ void *logstuff(void *arg) {
 }
 
 int main() {
-	if (stupid_log_init("/tmp", "multi_thread_log") < 0) {
+	if (stupid_log_init("/tmp", "multi_thread_log", STUPID_LOG_HOURLY) < 0) {
 		perror("log_init");
 		exit(1);
 	}
+
+	stupid_log_trace("Starting two threads");
 	
 	pthread_t one, two;
 	pthread_create(&one, NULL, logstuff, &(int){1});
@@ -29,5 +30,6 @@ int main() {
 	pthread_join(one, NULL);
 	pthread_join(two, NULL);
 
+	stupid_log_trace("Exiting");
 	stupid_log_close();
 }
