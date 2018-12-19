@@ -34,7 +34,13 @@
  * or -USTUPID_LOG_PRINT_FILE_AND_LINE to disable.
  *
  * #define STUPID_LOG_PRINT_FILE_AND_LINE 1
+ */
+
+/*
+ * Uncomment to enable thread-specific keys using pthread.h. Requires linking
+ * against pthread. See README.
  *
+ * #define STUPID_LOG_USE_PTHREAD
  */
 
 enum STUPID_LOG_LEVEL {

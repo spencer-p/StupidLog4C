@@ -33,8 +33,7 @@
 
 static char filenameprefix[PATH_BUFSIZE] = {0};
 static enum STUPID_LOG_ROLLOVER rollover_granularity = STUPID_LOG_HOURLY;
-static _Thread_local struct tm current_log_tm = {0};
-static _Thread_local FILE *logfile = NULL;
+static _Thread_local struct tm log_timestamp = {0};
 
 static FILE *stupid_log_handle(struct tm *new_tm);
 static FILE *stupid_log_make_handle();
@@ -42,27 +41,78 @@ static bool should_rollover(struct tm *old, struct tm *new);
 static int safe_fclose(FILE *f);
 static int strjoin(char *dest, size_t n, char *left, char mid, char *right);
 
-static FILE *stupid_log_handle(struct tm *new_tm) {
-	if (should_rollover(&current_log_tm, new_tm)) {
-		/* If rolling over, close the stream and let the next block open it */
-		safe_fclose(logfile);
-		logfile = NULL;
-	}
-	if (logfile == NULL) {
-		logfile = stupid_log_make_handle();
-	}
+/* Thread specific handlers, can be implemented w/ pthread.h or _Thread_local */
+static int init_thread_specific();
+static int close_thread_specific();
+static FILE *load_log_stream();
+static void store_log_stream(FILE *stream);
+
+#ifdef STUPID_LOG_USE_PTHREAD
+#include <pthread.h>
+static pthread_key_t log_stream_key;
+
+static void close_log_key(void *val) {
+	safe_fclose((FILE *)val);
+	pthread_setspecific(log_stream_key, NULL);
+}
+
+static int init_thread_specific() {
+	return pthread_key_create(&log_stream_key, close_log_key);
+}
+
+static int close_thread_specific() {
+	close_log_key(pthread_getspecific(log_stream_key));
+	return pthread_key_delete(log_stream_key);
+}
+
+static FILE *load_log_stream() {
+	return pthread_getspecific(log_stream_key);
+}
+
+static void store_log_stream(FILE *stream) {
+	pthread_setspecific(log_stream_key, stream);
+}
+#else /* STUPID_LOG_USE_PTHREAD */
+static _Thread_local FILE *logfile = NULL;
+
+static int init_thread_specific() {
+	return 0;
+}
+
+static int close_thread_specific() {
+	safe_fclose(load_log_stream());
+	store_log_stream(NULL);
+	return 0;
+}
+
+static FILE *load_log_stream() {
 	return logfile;
 }
 
-static FILE *stupid_log_make_handle() {
-	time_t t;
-	struct tm *tm;
+static void store_log_stream(FILE *stream) {
+	logfile = stream;
+}
+#endif /* STUPID_LOG_USE_PTHREAD */
+
+static FILE *stupid_log_handle(struct tm *new_tm) {
+	if (should_rollover(&log_timestamp, new_tm)) {
+		/* If rolling over, close the stream and let the next block open it */
+		safe_fclose(load_log_stream());
+		store_log_stream(NULL);
+	}
+	if (load_log_stream() == NULL) {
+		/* Store a new log stream and the time it was opened */
+		store_log_stream(stupid_log_make_handle(new_tm));
+		log_timestamp = *new_tm;
+	}
+	return load_log_stream();
+}
+
+static FILE *stupid_log_make_handle(struct tm *tm) {
 	char tbuf[16];
 	char pathbuf[PATH_BUFSIZE+16];
 	FILE *f;
 
-	t = time(NULL);
-	tm = localtime(&t);
 	tbuf[strftime(tbuf, sizeof(tbuf), "%F-%H", tm)] = '\0';
 
 	strjoin(pathbuf, sizeof(pathbuf), filenameprefix, '.', tbuf);
@@ -75,8 +125,6 @@ static FILE *stupid_log_make_handle() {
 	/* Flush log lines immediately by setting line buffering */
 	setvbuf(f, NULL, _IOLBF, 0);
 
-	/* Save the timestamp for this log handle */
-	current_log_tm = *tm;
 	return f;
 }
 
@@ -121,6 +169,10 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 	char pathbuf[PATH_BUFSIZE];
 	FILE *tmp;
 
+	if (init_thread_specific() < 0) {
+		return -1;
+	}
+
 	rollover_granularity = rollover;
 
 	/* Check if the file paths will fit in our buffers.
@@ -150,9 +202,7 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 }
 
 void stupid_log_close() {
-	safe_fclose(logfile);
-	logfile = NULL;
-	return;
+	close_thread_specific();
 }
 
 int stupid_log(const char *level, const char *format, ...) {
@@ -184,7 +234,7 @@ int stupid_log(const char *level, const char *format, ...) {
 	vfprintf(out, format, args);
 	va_end(args);
 
-	/* Append new line */
+	/* Append new line -- flushes the buffer */
 	fputc('\n', out);
 
 	if (errsave != 0) {

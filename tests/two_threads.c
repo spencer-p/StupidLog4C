@@ -10,10 +10,20 @@ void *logstuff(void *arg) {
 	int i;
 
 	for (i = 0; i < 10; i++) {
+		/* Log calls are successful in any thread as long as stupid_log_init was
+		 * previously called */
 		stupid_log_info("From thread %d, i equals %d", threadnum, i);
 	}
 
+#ifndef STUPID_LOG_USE_PTHREAD
+	/*
+	 * If we don't have pthread keys for the file streams, we have to close the
+	 * logs ourselves.
+	 * If we compiled with STUPID_LOG_USE_PTHREAD and linked against pthread,
+	 * then we can skip this -- the data will be cleaned up automatically.
+	 */
 	stupid_log_close();
+#endif
 	return NULL;
 }
 
