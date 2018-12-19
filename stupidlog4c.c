@@ -117,7 +117,7 @@ static FILE *stupid_log_make_handle(struct tm *tm) {
 
 	strjoin(pathbuf, sizeof(pathbuf), filenameprefix, '.', tbuf);
 
-	f = fopen(pathbuf, "a");
+	f = fopen(pathbuf, "a+e");
 	if (f == NULL) {
 		return stderr;
 	}
