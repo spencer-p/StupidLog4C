@@ -26,7 +26,7 @@ for compiling an object file, a shared object, or a static library. See the
 section on compiler options for compile-time configuration.
 
 A simple "Hello world" example with StupidLog4C:
-```
+```c
 #include <stdlib.h>
 #include <stdio.h>
 
