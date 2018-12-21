@@ -3,12 +3,58 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 static char filenameprefix[256] = {0};
 static enum STUPID_LOG_ROLLOVER rollover_granularity = STUPID_LOG_HOURLY;
 static _Thread_local struct tm current_log_tm = {0};
 static _Thread_local FILE *logfile = NULL;
+
+static FILE *stupid_log_handle(struct tm *new_tm);
+static FILE *stupid_log_make_handle();
+static bool should_rollover(struct tm *old, struct tm *new);
+static int safe_fclose(FILE *f);
+static int strjoin(char *dest, size_t n, char *left, char mid, char *right);
+
+static FILE *stupid_log_handle(struct tm *new_tm) {
+	if (should_rollover(&current_log_tm, new_tm)) {
+		// If it's time to rollover, close the old handle and let the next block
+		// open a new handle.
+		safe_fclose(logfile);
+		logfile = NULL;
+	}
+	if (logfile == NULL) {
+		logfile = stupid_log_make_handle();
+	}
+	return logfile;
+}
+
+static FILE *stupid_log_make_handle() {
+	time_t t;
+	struct tm *tm;
+	char tbuf[16];
+	char pathbuf[256+16];
+	FILE *f;
+
+	t = time(NULL);
+	tm = localtime(&t);
+	tbuf[strftime(tbuf, sizeof(tbuf), "%F-%H", tm)] = '\0';
+
+	strjoin(pathbuf, sizeof(pathbuf), filenameprefix, '.', tbuf);
+
+	f = fopen(pathbuf, "a");
+	if (f == NULL) {
+		return stderr;
+	}
+
+	// Flush log lines immediately by setting line buffering
+	setvbuf(f, NULL, _IOLBF, 0);
+
+	// Save the timestamp for this log handle
+	current_log_tm = *tm;
+	return f;
+}
 
 static bool should_rollover(struct tm *old, struct tm *new) {
 	if (rollover_granularity >= STUPID_LOG_HOURLY && old->tm_hour != new->tm_hour) {
@@ -26,32 +72,6 @@ static bool should_rollover(struct tm *old, struct tm *new) {
 	return false;
 }
 
-static FILE *stupid_log_make_handle() {
-	time_t t;
-	struct tm *tm;
-	char tbuf[16];
-	char pathbuf[256+16];
-	FILE *f;
-
-	t = time(NULL);
-	tm = localtime(&t);
-	tbuf[strftime(tbuf, sizeof(tbuf), "%F-%H", tm)] = '\0';
-
-	snprintf(pathbuf, sizeof(pathbuf), "%s.%s", filenameprefix, tbuf);
-
-	f = fopen(pathbuf, "a");
-	if (f == NULL) {
-		return stderr;
-	}
-
-	// Flush log lines immediately by setting line buffering
-	setvbuf(f, NULL, _IOLBF, 0);
-
-	// Save the timestamp for this log handle
-	current_log_tm = *tm;
-	return f;
-}
-
 static int safe_fclose(FILE *f) {
 	if (f != NULL && f != stderr && f != stdout) {
 		return fclose(f);
@@ -59,17 +79,18 @@ static int safe_fclose(FILE *f) {
 	return 0;
 }
 
-static FILE *stupid_log_handle(struct tm *new_tm) {
-	if (should_rollover(&current_log_tm, new_tm)) {
-		// If it's time to rollover, close the old handle and let the next block
-		// open a new handle.
-		safe_fclose(logfile);
-		logfile = NULL;
+static int strjoin(char *dest, size_t n, char *left, char mid, char *right) {
+	size_t llen = strlen(left);
+	size_t rlen = strlen(right);
+	size_t len = llen + 1 + rlen;
+	if (len + 1 > n) {
+		return -1;
 	}
-	if (logfile == NULL) {
-		logfile = stupid_log_make_handle();
-	}
-	return logfile;
+	memcpy(dest, left, llen);
+	dest[llen] = mid;
+	memcpy(dest+llen+1, right, rlen);
+	dest[len] = '\0';
+	return 0;
 }
 
 int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER rollover) {
@@ -79,7 +100,7 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 	rollover_granularity = rollover;
 
 	// Check if the directory is writeable
-	snprintf(pathbuf, sizeof(pathbuf), "%s/%s", directory, ".stupidlog4c_tmp");
+	strjoin(pathbuf, sizeof(pathbuf), directory, '/', ".stupidlog4c.tmp");
 	tmp = fopen(pathbuf, "w");
 	if (tmp == NULL) {
 		return -1;
@@ -91,7 +112,7 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 	remove(pathbuf);
 
 	// Save file prefix
-	snprintf(filenameprefix, sizeof(filenameprefix), "%s/%s", directory, prefix);
+	strjoin(filenameprefix, sizeof(filenameprefix), directory, '/', prefix);
 	return 0;
 }
 
