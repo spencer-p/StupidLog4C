@@ -1,14 +1,15 @@
 #include "stupidlog4c.h"
 
-#include <stdbool.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <threads.h>
 #include <time.h>
 
 static char filenameprefix[256] = {0};
 static enum STUPID_LOG_ROLLOVER rollover_granularity = STUPID_LOG_HOURLY;
-static _Thread_local struct tm current_log_tm = {0};
-static _Thread_local FILE *logfile = NULL;
+static thread_local struct tm current_log_tm = {0};
+static thread_local FILE *logfile = NULL;
 
 static bool should_rollover(struct tm *old, struct tm *new) {
 	if (rollover_granularity >= STUPID_LOG_HOURLY && old->tm_hour != new->tm_hour) {
