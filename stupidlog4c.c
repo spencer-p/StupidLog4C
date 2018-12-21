@@ -3,13 +3,12 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <threads.h>
 #include <time.h>
 
 static char filenameprefix[256] = {0};
 static enum STUPID_LOG_ROLLOVER rollover_granularity = STUPID_LOG_HOURLY;
-static thread_local struct tm current_log_tm = {0};
-static thread_local FILE *logfile = NULL;
+static _Thread_local struct tm current_log_tm = {0};
+static _Thread_local FILE *logfile = NULL;
 
 static bool should_rollover(struct tm *old, struct tm *new) {
 	if (rollover_granularity >= STUPID_LOG_HOURLY && old->tm_hour != new->tm_hour) {
@@ -29,14 +28,14 @@ static bool should_rollover(struct tm *old, struct tm *new) {
 
 static FILE *stupid_log_make_handle() {
 	time_t t;
-	struct tm tm;
+	struct tm *tm;
 	char tbuf[16];
 	char pathbuf[256+16];
 	FILE *f;
 
 	t = time(NULL);
-	localtime_r(&t, &tm);
-	tbuf[strftime(tbuf, sizeof(tbuf), "%F-%H", &tm)] = '\0';
+	tm = localtime(&t);
+	tbuf[strftime(tbuf, sizeof(tbuf), "%F-%H", tm)] = '\0';
 
 	snprintf(pathbuf, sizeof(pathbuf), "%s.%s", filenameprefix, tbuf);
 
@@ -44,8 +43,12 @@ static FILE *stupid_log_make_handle() {
 	if (f == NULL) {
 		return stderr;
 	}
-	setlinebuf(f);
-	current_log_tm = tm;
+
+	// Flush log lines immediately by setting line buffering
+	setvbuf(f, NULL, _IOLBF, 0);
+
+	// Save the timestamp for this log handle
+	current_log_tm = *tm;
 	return f;
 }
 
@@ -100,16 +103,16 @@ int stupid_log_close() {
 
 void stupid_log(const char *level, const char *format, ...) {
 	time_t t;
-	struct tm tm;
+	struct tm *tm;
 	char tbuf[32];
 	FILE *out;
 	va_list args;
 
 	t = time(NULL);
-	localtime_r(&t, &tm);
-	tbuf[strftime(tbuf, sizeof(tbuf), "%F %T", &tm)] = '\0';
+	tm = localtime(&t);
+	tbuf[strftime(tbuf, sizeof(tbuf), "%F %T", tm)] = '\0';
 
-	out = stupid_log_handle(&tm);
+	out = stupid_log_handle(tm);
 	fprintf(out, "%s [%-5s] ", tbuf, level);
 	va_start(args, format);
 	vfprintf(out, format, args);

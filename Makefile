@@ -1,4 +1,4 @@
-CFLAGS += -Wall -Werror -Wextra -std=gnu11 -lpthread
+CFLAGS += -Wall -Werror -Wextra -lpthread
 
 all: stupidlog4c.o
 
