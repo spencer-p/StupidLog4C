@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdio.h>
-
 enum STUPID_LOG_LEVEL {
 	STUPID_LOG_TRACE,
 	STUPID_LOG_DEBUG,
@@ -22,14 +20,14 @@ enum STUPID_LOG_ROLLOVER {
 // -DSTUPID_LOG_MIN_LEVEL=[your level here]
 #define STUPID_LOG_MIN_LEVEL STUPID_LOG_TRACE
 
-// Uncomment for file name and line number in log lines.
-// At the compiler level, use -DSTUPID_LOG_PRINT_FILE_AND LINE to enable or
+// Uncomment to enable file name and line number in log lines.
+// At the compiler level, use -DSTUPID_LOG_PRINT_FILE_AND_LINE to enable or
 // -USTUPID_LOG_PRINT_FILE_AND_LINE to disable.
 //#define STUPID_LOG_PRINT_FILE_AND_LINE 1
 
 int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER rollover);
 int stupid_log_close();
-void stupid_log(const char *level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
+void stupid_log(const char *level, const char *format, ...) __attribute__((format (printf, 2, 3)));
 
 #ifdef STUPID_LOG_PRINT_FILE_AND_LINE
 #define stupid_log_wrap(_level, _fmt, ...) stupid_log(#_level, "%s:%d: "_fmt, __FILE__, __LINE__, ##__VA_ARGS__)
