@@ -19,8 +19,7 @@ static int strjoin(char *dest, size_t n, char *left, char mid, char *right);
 
 static FILE *stupid_log_handle(struct tm *new_tm) {
 	if (should_rollover(&current_log_tm, new_tm)) {
-		// If it's time to rollover, close the old handle and let the next block
-		// open a new handle.
+		/* If rolling over, close the stream and let the next block open it */
 		safe_fclose(logfile);
 		logfile = NULL;
 	}
@@ -48,10 +47,10 @@ static FILE *stupid_log_make_handle() {
 		return stderr;
 	}
 
-	// Flush log lines immediately by setting line buffering
+	/* Flush log lines immediately by setting line buffering */
 	setvbuf(f, NULL, _IOLBF, 0);
 
-	// Save the timestamp for this log handle
+	/* Save the timestamp for this log handle */
 	current_log_tm = *tm;
 	return f;
 }
@@ -99,7 +98,7 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 
 	rollover_granularity = rollover;
 
-	// Check if the directory is writeable
+	/* Check if the directory is writeable */
 	strjoin(pathbuf, sizeof(pathbuf), directory, '/', ".stupidlog4c.tmp");
 	tmp = fopen(pathbuf, "w");
 	if (tmp == NULL) {
@@ -111,7 +110,7 @@ int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER roll
 	fclose(tmp);
 	remove(pathbuf);
 
-	// Save file prefix
+	/* Save file prefix */
 	strjoin(filenameprefix, sizeof(filenameprefix), directory, '/', prefix);
 	return 0;
 }

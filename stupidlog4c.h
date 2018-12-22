@@ -1,5 +1,20 @@
 #pragma once
 
+/*
+ * Change to your desired log level, or compile with
+ * -DSTUPID_LOG_MIN_LEVEL=[your level here]
+ */
+#define STUPID_LOG_MIN_LEVEL STUPID_LOG_TRACE
+
+/*
+ * Uncomment the following define to enable file name and line number in log
+ * lines.  At the compiler level, use -DSTUPID_LOG_PRINT_FILE_AND_LINE to enable
+ * or -USTUPID_LOG_PRINT_FILE_AND_LINE to disable.
+ *
+ * #define STUPID_LOG_PRINT_FILE_AND_LINE 1
+ *
+ */
+
 enum STUPID_LOG_LEVEL {
 	STUPID_LOG_TRACE,
 	STUPID_LOG_DEBUG,
@@ -15,15 +30,6 @@ enum STUPID_LOG_ROLLOVER {
 	STUPID_LOG_DAILY,
 	STUPID_LOG_HOURLY,
 };
-
-// Change to your desired log level, or compile with
-// -DSTUPID_LOG_MIN_LEVEL=[your level here]
-#define STUPID_LOG_MIN_LEVEL STUPID_LOG_TRACE
-
-// Uncomment to enable file name and line number in log lines.
-// At the compiler level, use -DSTUPID_LOG_PRINT_FILE_AND_LINE to enable or
-// -USTUPID_LOG_PRINT_FILE_AND_LINE to disable.
-//#define STUPID_LOG_PRINT_FILE_AND_LINE 1
 
 int stupid_log_init(char *directory, char *prefix, enum STUPID_LOG_ROLLOVER rollover);
 int stupid_log_close();

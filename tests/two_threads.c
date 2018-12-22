@@ -7,8 +7,9 @@
 
 void *logstuff(void *arg) {
 	int threadnum = *((int*)arg);
+	int i;
 
-	for (int i = 0; i < 10; i++) {
+	for (i = 0; i < 10; i++) {
 		stupid_log_info("From thread %d, i equals %d", threadnum, i);
 	}
 
@@ -33,4 +34,5 @@ int main() {
 
 	stupid_log_trace("Exiting");
 	stupid_log_close();
+	return 0;
 }
